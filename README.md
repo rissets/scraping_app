@@ -81,9 +81,10 @@ scraping_app/
    ```
 
 4. **Access the API**:
-   - API: http://localhost:8000
-   - Documentation: http://localhost:8000/docs
-   - Health check: http://localhost:8000/health
+
+   - API: <http://localhost:8000>
+   - Documentation: <http://localhost:8000/docs>
+   - Health check: <http://localhost:8000/health>
 
 ### Using Local Python Environment
 
@@ -179,43 +180,81 @@ The development environment includes:
 
 ## 📖 API Documentation
 
+### Interactive Documentation
+
+- **Swagger UI**: <http://localhost:8000/docs>
+- **ReDoc**: <http://localhost:8000/redoc>
+- **Custom Documentation**: `docs/API_DOCUMENTATION.md`
+- **OpenAPI Specification**: `openapi.yaml` and `openapi.json`
+
 ### Authentication
 
-All endpoints require API key authentication via Bearer token:
+All endpoints (except health checks) require API key authentication via Bearer token:
 
 ```bash
-curl -H "Authorization: Bearer your_api_key" http://localhost:8000/api/v1/search?query=technology
+curl -H "Authorization: Bearer nexus_dev_key_123" \
+     "http://localhost:8000/api/v1/search?query=technology"
 ```
 
 ### Main Endpoints
 
-#### 1. Search News
-```
+#### 1. Search News (Multiple Sources)
+
+```http
 GET /api/v1/search?query={query}&sources={sources}&category={category}&format={format}
 ```
 
 **Parameters:**
-- `query` (required): Search term
-- `sources` (optional): Comma-separated source list
-- `category` (optional): News category filter
+
+- `query` (required): Search term or keywords
+- `sources` (optional): Comma-separated source list (e.g., "google_news,bbc_news,medium")
+- `category` (optional): News category filter (technology, business, sports, etc.)
 - `format` (optional): Response format (json, csv, xml)
 
-#### 2. Scrape URL
+**Example:**
+
+```bash
+curl -H "Authorization: Bearer nexus_dev_key_123" \
+     "http://localhost:8000/api/v1/search?query=artificial%20intelligence&sources=google_news,medium&category=technology"
 ```
+
+#### 2. Search by Specific Source and Category
+
+```http
+GET /api/v1/search-by-source-category?query={query}&source={source}&category={category}
+```
+
+**Example:**
+
+```bash
+curl -H "Authorization: Bearer nexus_dev_key_123" \
+     "http://localhost:8000/api/v1/search-by-source-category?query=python&source=devto&category=technology"
+```
+
+#### 3. Scrape Article Content
+
+```http
 POST /api/v1/scrape-url
+```
+
+**Request Body:**
+
+```json
 {
   "url": "https://example.com/article",
   "output_mode": "response"
 }
 ```
 
-#### 3. Available Sources
-```
+#### 4. Get Available Sources
+
+```http
 GET /api/v1/sources
 ```
 
-#### 4. Available Categories
-```
+#### 5. Get Available Categories
+
+```http
 GET /api/v1/categories
 ```
 
@@ -244,6 +283,7 @@ make docker-test
 ```
 
 ### Manual API Testing
+
 ```bash
 # Health check
 curl http://localhost:8000/health
@@ -251,6 +291,14 @@ curl http://localhost:8000/health
 # Search with API key
 curl -H "Authorization: Bearer nexus_dev_key_123" \
      "http://localhost:8000/api/v1/search?query=artificial%20intelligence"
+
+# Search specific source
+curl -H "Authorization: Bearer nexus_dev_key_123" \
+     "http://localhost:8000/api/v1/search-by-source-category?query=python&source=devto"
+
+# Get available sources
+curl -H "Authorization: Bearer nexus_dev_key_123" \
+     "http://localhost:8000/api/v1/sources"
 ```
 
 ## 🏭 Production Deployment
@@ -280,12 +328,31 @@ For production, ensure:
 
 ### Component Overview
 
-1. **FastAPI Application** (`main_new.py`): Entry point and routing
-2. **API Layer** (`app/api/`): Request handling and validation
-3. **Service Layer** (`app/services/`): Business logic and scraping
-4. **Core Layer** (`app/core/`): Authentication and utilities
-5. **Models** (`app/models/`): Data schemas and validation
-6. **Configuration** (`config/`): Settings management
+1. **FastAPI Application** (`main.py`): Entry point with comprehensive routing
+2. **API Layer** (`app/api/`): Request handling, validation, and 5 main endpoints
+3. **Service Layer** (`app/services/`): Business logic with 10 news scrapers
+4. **Core Layer** (`app/core/`): Authentication and utility functions
+5. **Models** (`app/models/`): Pydantic schemas with complete validation
+6. **Configuration** (`config/`): Environment-based settings management
+
+### Scraping Architecture
+
+#### Anti-Bot Protection
+- **Playwright Integration**: Google Search uses browser automation
+- **Rotating User Agents**: Multiple user agent strings
+- **Request Throttling**: Built-in rate limiting
+
+#### Source Priority System
+1. **Search Engines**: Google Search, DuckDuckGo (primary discovery)
+2. **News Aggregators**: Google News, Bing News (curated content)
+3. **International News**: BBC, CNN (authoritative sources)
+4. **Local News**: Detik, Kompas (regional coverage)
+5. **Tech Platforms**: Medium, Dev.to (specialized content)
+
+#### Data Processing
+- **Deduplication**: Title and URL-based duplicate removal
+- **Content Cleaning**: HTML stripping and text normalization
+- **Result Ranking**: Priority-based sorting with timestamp ordering
 
 ### Design Patterns
 
@@ -337,23 +404,74 @@ environment:
 
 ## 📚 Development
 
+### Recent Improvements (July 2025)
+
+✅ **Production Readiness Enhancements**:
+
+- **Environment Variables**: API keys moved to secure environment configuration
+- **Complete Documentation**: Enhanced OpenAPI specifications with detailed request/response schemas
+- **Source Expansion**: Added 7 new scrapers (Medium, Dev.to, BBC, CNN, Detik, Kompas, DuckDuckGo)
+- **Anti-Bot Protection**: Playwright browser automation for Google Search
+- **Data Quality**: Complete title and description extraction across all 10 sources
+
+See `FIXES_IMPLEMENTED.md` for detailed changelog.
+
 ### Code Style
 
-- Follow PEP 8 guidelines
-- Use type hints where possible
-- Document functions and classes
-- Format code with black: `make format`
+- Follow PEP 8 guidelines with black formatting
+- Use comprehensive type hints
+- Document all functions and classes with docstrings
+- Environment-based configuration for all settings
+- Comprehensive error handling with proper logging
 
-### Adding New Features
+### Adding New News Sources
 
-1. Create feature branch
-2. Add code in appropriate layer:
-   - API endpoints → `app/api/`
-   - Business logic → `app/services/`
-   - Data models → `app/models/`
-3. Add tests in `tests/`
-4. Update documentation
-5. Test with Docker environment
+1. **Create Scraper Class** in `app/services/scraper.py`:
+
+   ```python
+   class NewSourceScraper(BaseScraper):
+       def __init__(self):
+           super().__init__("New Source")
+           
+       async def search(self, query: str, category: Optional[NewsCategory] = None, limit: int = 10) -> List[NewsItem]:
+           # Implementation here
+           pass
+   ```
+
+2. **Add to Scrapers Mapping**:
+
+   ```python
+   scrapers = {
+       # ... existing scrapers ...
+       'new_source': NewSourceScraper(),
+   }
+   ```
+
+3. **Update Pydantic Schema** in `app/models/schemas.py`:
+
+   ```python
+   class NewsSource(str, Enum):
+       # ... existing sources ...
+       new_source = "new_source"
+   ```
+
+4. **Update Documentation**: Add source details to README.md and API_DOCUMENTATION.md
+
+### Testing New Features
+
+```bash
+# Test new scraper
+python -c "
+from app.services.scraper import scrapers
+import asyncio
+
+async def test():
+    results = await scrapers['new_source'].search('test query', limit=3)
+    print(f'Results: {len(results)}')
+
+asyncio.run(test())
+"
+```
 
 ### Contributing
 
