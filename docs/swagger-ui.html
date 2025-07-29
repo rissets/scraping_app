@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Nexus Aggregator API Documentation" />
+    <title>Nexus Aggregator - API Documentation</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .swagger-ui .topbar {
+            background-color: #1e293b;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .swagger-ui .topbar .download-url-wrapper {
+            display: none;
+        }
+        .swagger-ui .info .title {
+            color: #1e40af;
+        }
+        .custom-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        .custom-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+        .custom-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        .environment-selector {
+            background: #f8fafc;
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: center;
+        }
+        .environment-selector select {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            background: white;
+            margin-left: 10px;
+        }
+        .api-key-info {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px;
+            color: #92400e;
+        }
+        .api-key-info h3 {
+            margin-top: 0;
+            color: #b45309;
+        }
+    </style>
+</head>
+<body>
+    <div class="custom-header">
+        <h1>🔍 Nexus Aggregator</h1>
+        <p>Intelligent Information Gathering Engine</p>
+    </div>
+    
+    <div class="environment-selector">
+        <label for="environment-select">Environment:</label>
+        <select id="environment-select" onchange="changeEnvironment()">
+            <option value="http://localhost:8000">Development (localhost:8000)</option>
+            <option value="https://staging-api.nexusaggregator.com">Staging</option>
+            <option value="https://api.nexusaggregator.com">Production</option>
+        </select>
+    </div>
+
+    <div class="api-key-info">
+        <h3>🔑 Authentication Required</h3>
+        <p>All API endpoints require authentication. Use the <strong>"Authorize"</strong> button below to enter your API key.</p>
+        <p>Format: <code>Bearer your_api_key_here</code></p>
+        <p>Don't have an API key? <a href="mailto:support@nexusaggregator.com">Contact Support</a></p>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js" crossorigin></script>
+    <script>
+        let currentSpec = null;
+
+        // Load OpenAPI spec
+        async function loadSpec() {
+            try {
+                const response = await fetch('./openapi.json');
+                currentSpec = await response.json();
+                initSwaggerUI();
+            } catch (error) {
+                console.error('Failed to load OpenAPI spec:', error);
+                // Fallback to inline spec if file loading fails
+                currentSpec = getInlineSpec();
+                initSwaggerUI();
+            }
+        }
+
+        function initSwaggerUI() {
+            window.ui = SwaggerUIBundle({
+                spec: currentSpec,
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.presets.standalone
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                validatorUrl: null,
+                tryItOutEnabled: true,
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+                onComplete: function() {
+                    // Custom styling after load
+                    const topbar = document.querySelector('.topbar');
+                    if (topbar) {
+                        topbar.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        function changeEnvironment() {
+            const select = document.getElementById('environment-select');
+            const selectedUrl = select.value;
+            
+            if (currentSpec && currentSpec.servers) {
+                // Update the servers in the spec
+                const serverIndex = currentSpec.servers.findIndex(server => server.url === selectedUrl);
+                if (serverIndex !== -1) {
+                    // Move selected server to the top
+                    const selectedServer = currentSpec.servers.splice(serverIndex, 1)[0];
+                    currentSpec.servers.unshift(selectedServer);
+                    
+                    // Re-initialize Swagger UI
+                    initSwaggerUI();
+                }
+            }
+        }
+
+        function getInlineSpec() {
+            return {
+                "openapi": "3.0.3",
+                "info": {
+                    "title": "Nexus Aggregator API",
+                    "description": "An intelligent information-gathering engine that transforms internet noise into structured signals.",
+                    "version": "1.0.0"
+                },
+                "servers": [
+                    {
+                        "url": "http://localhost:8000",
+                        "description": "Development server"
+                    }
+                ],
+                "paths": {
+                    "/health": {
+                        "get": {
+                            "tags": ["Health"],
+                            "summary": "Health check",
+                            "responses": {
+                                "200": {
+                                    "description": "Health status",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "status": {"type": "string"},
+                                                    "timestamp": {"type": "string"},
+                                                    "version": {"type": "string"}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "components": {
+                    "securitySchemes": {
+                        "bearerAuth": {
+                            "type": "http",
+                            "scheme": "bearer",
+                            "bearerFormat": "API_KEY"
+                        }
+                    }
+                }
+            };
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', loadSpec);
+    </script>
+</body>
+</html>

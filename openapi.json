@@ -1,0 +1,618 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Nexus Aggregator API",
+    "description": "An intelligent information-gathering engine that transforms internet noise into structured signals.\n\n## Features\n- Search news articles across multiple sources\n- Scrape individual article content\n- Multiple output formats (JSON, CSV, XML, Markdown)\n- API key authentication\n- Real-time news aggregation\n\n## Authentication\nAll endpoints require API key authentication via Bearer token in the Authorization header:\n```\nAuthorization: Bearer your_api_key_here\n```\n\n## Rate Limiting\n- 100 requests per minute per API key\n- Burst limit of 20 requests per second\n\n## Data Sources\n- Google News RSS feeds\n- Bing News search results\n- Extensible architecture for additional sources\n",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Nexus Aggregator Support",
+      "email": "support@nexusaggregator.com",
+      "url": "https://nexusaggregator.com"
+    },
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "termsOfService": "https://nexusaggregator.com/terms"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.nexusaggregator.com",
+      "description": "Production server"
+    },
+    {
+      "url": "https://staging-api.nexusaggregator.com",
+      "description": "Staging server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Root endpoint",
+        "description": "API health check and welcome message",
+        "operationId": "getRoot",
+        "responses": {
+          "200": {
+            "description": "API information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Welcome to Nexus Aggregator"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "operational"
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "1.0.0"
+                    },
+                    "docs": {
+                      "type": "string",
+                      "example": "/docs"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "description": "Check API health status and get system information",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "Health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["healthy", "unhealthy"],
+                      "example": "healthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2025-07-29T14:39:09.802430"
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "1.0.0"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "tags": ["News Search"],
+        "summary": "Search news articles",
+        "description": "Search for news articles across multiple sources with various filtering options.\n\n### Supported Sources\n- `google_news`: Google News RSS feeds\n- `bing_news`: Bing News search results\n\n### Categories\n- technology, business, sports, health\n- entertainment, politics, science, general\n\n### Output Formats\n- `json`: Structured JSON response (default)\n- `csv`: CSV file download\n- `xml`: XML formatted data\n",
+        "operationId": "searchNews",
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "description": "Search term or keywords",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "example": "artificial intelligence"
+          },
+          {
+            "name": "sources",
+            "in": "query",
+            "required": false,
+            "description": "Comma-separated list of news sources",
+            "schema": {
+              "type": "string"
+            },
+            "example": "google_news,bing_news"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "News category filter",
+            "schema": {
+              "$ref": "#/components/schemas/NewsCategory"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "Response format",
+            "schema": {
+              "$ref": "#/components/schemas/OutputFormat"
+            },
+            "example": "json"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/scrape-url": {
+      "post": {
+        "tags": ["URL Scraping"],
+        "summary": "Scrape article content",
+        "description": "Scrape content from a specific URL and return it in markdown format.\n\n### Output Modes\n- `response`: Return content directly in API response\n- `markdown_file`: Save content to file and return file path\n\n### Supported Sites\n- Most news websites and blogs\n- Articles with standard HTML structure\n- Sites without heavy JavaScript requirements\n",
+        "operationId": "scrapeUrl",
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScrapeUrlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Scraped content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScrapeUrlResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid URL or scraping failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/sources": {
+      "get": {
+        "tags": ["Configuration"],
+        "summary": "Get available news sources",
+        "description": "Retrieve list of all available news sources with their descriptions",
+        "operationId": "getAvailableSources",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "List of available sources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available_sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "google_news"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Google News"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "Google News RSS feed"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "tags": ["Configuration"],
+        "summary": "Get available news categories",
+        "description": "Retrieve list of all supported news categories",
+        "operationId": "getAvailableCategories",
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "List of available categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available_categories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "technology"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Technology"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API_KEY",
+        "description": "API key authentication using Bearer token.\n\nExample: `Authorization: Bearer your_api_key_here`\n\nTo obtain an API key, contact support or register at our developer portal."
+      }
+    },
+    "schemas": {
+      "NewsCategory": {
+        "type": "string",
+        "enum": [
+          "technology",
+          "business",
+          "sports",
+          "health",
+          "entertainment",
+          "politics",
+          "science",
+          "general"
+        ],
+        "example": "technology"
+      },
+      "OutputFormat": {
+        "type": "string",
+        "enum": ["json", "csv", "xml"],
+        "default": "json",
+        "example": "json"
+      },
+      "OutputMode": {
+        "type": "string",
+        "enum": ["response", "markdown_file"],
+        "default": "response",
+        "example": "response"
+      },
+      "NewsItem": {
+        "type": "object",
+        "required": [
+          "title",
+          "link",
+          "source_name",
+          "snippet",
+          "scraped_timestamp"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The headline or title of the news article",
+            "example": "Breaking: New AI Technology Breakthrough"
+          },
+          "link": {
+            "type": "string",
+            "format": "uri",
+            "description": "The URL to the full article",
+            "example": "https://example.com/ai-breakthrough"
+          },
+          "source_name": {
+            "type": "string",
+            "description": "The name of the news source",
+            "example": "Google News"
+          },
+          "snippet": {
+            "type": "string",
+            "description": "A brief description or excerpt from the article",
+            "maxLength": 500,
+            "example": "Researchers have developed a new AI model that..."
+          },
+          "published_date": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the article was published",
+            "example": "2025-07-29T12:00:00Z"
+          },
+          "scraped_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the article was scraped",
+            "example": "2025-07-29T14:00:00Z"
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "required": ["query", "item_count", "sources_searched", "results"],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query used",
+            "example": "artificial intelligence"
+          },
+          "item_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of items returned",
+            "example": 10
+          },
+          "sources_searched": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of sources that were searched",
+            "example": ["google_news", "bing_news"]
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewsItem"
+            },
+            "description": "The search results"
+          }
+        }
+      },
+      "ScrapeUrlRequest": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The full URL of the article to scrape",
+            "example": "https://example.com/article"
+          },
+          "output_mode": {
+            "$ref": "#/components/schemas/OutputMode",
+            "description": "How to return the scraped content"
+          }
+        }
+      },
+      "ScrapeUrlResponse": {
+        "type": "object",
+        "required": ["source_url", "status"],
+        "properties": {
+          "source_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The original URL that was scraped",
+            "example": "https://example.com/article"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "error"],
+            "description": "Status of the scraping operation",
+            "example": "success"
+          },
+          "markdown_content": {
+            "type": "string",
+            "nullable": true,
+            "description": "The scraped content in markdown format",
+            "example": "# Article Title\n\n**Author:** John Doe\n**Date:** 2025-07-29\n\nArticle content goes here..."
+          },
+          "file_path": {
+            "type": "string",
+            "nullable": true,
+            "description": "Path to the saved file if output_mode is markdown_file",
+            "example": "scraped_articles/example_com_20250729_140000.md"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error", "status_code"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "example": "Invalid API key"
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true,
+            "description": "Additional error details",
+            "example": "The provided API key is not valid or has expired"
+          },
+          "status_code": {
+            "type": "integer",
+            "description": "HTTP status code",
+            "example": 401
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the error occurred",
+            "example": "2025-07-29T14:00:00Z"
+          }
+        }
+      }
+    },
+    "responses": {
+      "UnauthorizedError": {
+        "description": "Authentication required or invalid API key",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "RateLimitError": {
+        "description": "Rate limit exceeded",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        },
+        "headers": {
+          "X-RateLimit-Limit": {
+            "description": "Request limit per minute",
+            "schema": {
+              "type": "integer",
+              "example": 100
+            }
+          },
+          "X-RateLimit-Remaining": {
+            "description": "Remaining requests in current window",
+            "schema": {
+              "type": "integer",
+              "example": 0
+            }
+          },
+          "X-RateLimit-Reset": {
+            "description": "Time when rate limit resets (Unix timestamp)",
+            "schema": {
+              "type": "integer",
+              "example": 1722262800
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Internal server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check and system status endpoints"
+    },
+    {
+      "name": "News Search",
+      "description": "Search and retrieve news articles from multiple sources"
+    },
+    {
+      "name": "URL Scraping",
+      "description": "Scrape content from individual article URLs"
+    },
+    {
+      "name": "Configuration",
+      "description": "Get information about available sources and categories"
+    }
+  ],
+  "externalDocs": {
+    "description": "Find more info at our documentation site",
+    "url": "https://docs.nexusaggregator.com"
+  }
+}

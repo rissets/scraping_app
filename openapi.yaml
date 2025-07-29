@@ -1,0 +1,425 @@
+openapi: 3.0.3
+info:
+  title: Nexus Aggregator API
+  description: An intelligent information-gathering engine that transforms internet noise into structured signals
+  version: 1.0.0
+  contact:
+    name: Nexus Aggregator Support
+    email: support@nexusaggregator.com
+    url: https://nexusaggregator.com
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.nexusaggregator.com
+    description: Production server
+
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Root endpoint
+      description: API health check and welcome message
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+                  version:
+                    type: string
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API health status
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                  version:
+                    type: string
+
+  /api/v1/search:
+    get:
+      tags:
+        - News Search
+      summary: Search news articles
+      description: Search for news articles across multiple sources
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Search term or keywords
+          schema:
+            type: string
+        - name: sources
+          in: query
+          required: false
+          description: Comma-separated list of news sources to search
+          schema:
+            type: string
+            example: "google_news,bing_news,bbc_news"
+          style: form
+          explode: false
+        - name: category
+          in: query
+          required: false
+          description: Filter results by news category
+          schema:
+            $ref: '#/components/schemas/NewsCategory'
+        - name: format
+          in: query
+          required: false
+          description: Output format for the response
+          schema:
+            $ref: '#/components/schemas/OutputFormat'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/scrape-url:
+    post:
+      tags:
+        - URL Scraping
+      summary: Scrape article content
+      description: Scrape content from a URL
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScrapeUrlRequest'
+      responses:
+        '200':
+          description: Scraped content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScrapeUrlResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/sources:
+    get:
+      tags:
+        - Configuration
+      summary: Get available news sources
+      description: Retrieve list of all available news sources with their categories
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of available news sources
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "google_news"
+                        display_name:
+                          type: string
+                          example: "Google News"
+                        category:
+                          type: string
+                          example: "search_engine"
+                        description:
+                          type: string
+                          example: "Google News RSS feed aggregator"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/categories:
+    get:
+      tags:
+        - Configuration  
+      summary: Get available categories
+      description: Retrieve list of all available news categories
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of available categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NewsCategory'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/search-by-source-category:
+    get:
+      tags:
+        - News Search
+      summary: Search by source and category
+      description: Search for news articles by specific source and category combination
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Search term or keywords
+          schema:
+            type: string
+            example: "artificial intelligence"
+        - name: source
+          in: query
+          required: true
+          description: Specific news source to search
+          schema:
+            $ref: '#/components/schemas/NewsSource'
+        - name: category
+          in: query
+          required: false
+          description: Filter results by news category
+          schema:
+            $ref: '#/components/schemas/NewsCategory'
+        - name: format
+          in: query
+          required: false
+          description: Output format for the response
+          schema:
+            $ref: '#/components/schemas/OutputFormat'
+      responses:
+        '200':
+          description: Search results from specific source
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+      description: API key authentication using Bearer token
+
+  schemas:
+    NewsSource:
+      type: string
+      enum:
+        - google_search
+        - google_news
+        - bing_news
+        - duckduckgo
+        - medium
+        - devto
+        - bbc_news
+        - cnn
+        - detik
+        - kompas
+      description: Available news sources for searching
+
+    NewsCategory:
+      type: string
+      enum:
+        - technology
+        - business
+        - sports
+        - health
+        - entertainment
+        - politics
+        - science
+        - general
+      description: News categories for filtering results
+
+    OutputFormat:
+      type: string
+      enum:
+        - json
+        - csv
+        - xml
+      default: json
+
+    NewsItem:
+      type: object
+      required:
+        - title
+        - link
+        - source_name
+        - snippet
+        - scraped_timestamp
+      properties:
+        title:
+          type: string
+          description: The headline or title of the news article
+          example: "AI Breakthrough: New Language Model Shows Promise"
+        link:
+          type: string
+          format: uri
+          description: The URL to the full article
+          example: "https://techcrunch.com/2025/01/29/ai-breakthrough/"
+        source_name:
+          type: string
+          description: The name of the news source
+          example: "Google News"
+        snippet:
+          type: string
+          description: A brief description or excerpt from the article
+          example: "Researchers at OpenAI have announced a breakthrough in language model training..."
+        published_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the article was published (if available)
+          example: "2025-01-29T12:00:00Z"
+        scraped_timestamp:
+          type: string
+          format: date-time
+          description: When the article was scraped by our system
+          example: "2025-01-29T14:30:00Z"
+
+    SearchResponse:
+      type: object
+      required:
+        - query
+        - item_count
+        - sources_searched
+        - results
+      properties:
+        query:
+          type: string
+          description: The search query that was used
+          example: "artificial intelligence"
+        item_count:
+          type: integer
+          description: Total number of articles found
+          example: 25
+        sources_searched:
+          type: array
+          items:
+            type: string
+          description: List of news sources that were searched
+          example: ["google_news", "bing_news", "techcrunch"]
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsItem'
+          description: Array of news articles found
+
+    ScrapeUrlRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The full URL of the article to scrape
+          example: "https://example.com/news/article-title"
+        output_mode:
+          type: string
+          enum:
+            - response
+            - markdown_file
+          default: response
+          description: |
+            How to return the scraped content:
+            - response: Return content in API response
+            - markdown_file: Save content to file and return file path
+      example:
+        url: "https://techcrunch.com/2025/01/29/ai-breakthrough/"
+        output_mode: "response"
+
+    ScrapeUrlResponse:
+      type: object
+      required:
+        - source_url
+        - status
+      properties:
+        source_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum:
+            - success
+            - error
+        markdown_content:
+          type: string
+          nullable: true
+        file_path:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - status_code
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
+          nullable: true
+        status_code:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: News Search
+    description: Search news articles
+  - name: URL Scraping
+    description: Scrape article content
+  - name: Configuration
+    description: Get available sources and categories

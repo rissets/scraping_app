@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  nexus-aggregator:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: nexus-aggregator
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=False
+      - API_KEYS=nexus_prod_key_123,nexus_prod_key_456,nexus_prod_key_789
+    volumes:
+      # Mount volume for scraped articles (persistent storage)
+      - scraped_articles:/app/scraped_articles
+      # Mount logs directory
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Redis for caching (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: nexus-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   restart: unless-stopped
+  #   networks:
+  #     - nexus-network
+
+  # Optional: Nginx reverse proxy (uncomment if needed)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: nexus-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - nexus-aggregator
+  #   restart: unless-stopped
+  #   networks:
+  #     - nexus-network
+
+volumes:
+  scraped_articles:
+    driver: local
+  # redis_data:
+  #   driver: local
+
+networks:
+  nexus-network:
+    driver: bridge

@@ -1,0 +1,274 @@
+openapi: 3.0.3
+info:
+  title: Nexus Aggregator API
+  description: An intelligent information-gathering engine that transforms internet noise into structured signals
+  version: 1.0.0
+  contact:
+    name: Nexus Aggregator Support
+    email: support@nexusaggregator.com
+    url: https://nexusaggregator.com
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.nexusaggregator.com
+    description: Production server
+
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Root endpoint
+      description: API health check and welcome message
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+                  version:
+                    type: string
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check API health status
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                  version:
+                    type: string
+
+  /api/v1/search:
+    get:
+      tags:
+        - News Search
+      summary: Search news articles
+      description: Search for news articles across multiple sources
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Search term or keywords
+          schema:
+            type: string
+        - name: sources
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/NewsCategory'
+        - name: format
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/OutputFormat'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/scrape-url:
+    post:
+      tags:
+        - URL Scraping
+      summary: Scrape article content
+      description: Scrape content from a URL
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScrapeUrlRequest'
+      responses:
+        '200':
+          description: Scraped content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScrapeUrlResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+      description: API key authentication using Bearer token
+
+  schemas:
+    NewsCategory:
+      type: string
+      enum:
+        - technology
+        - business
+        - sports
+        - health
+        - entertainment
+        - politics
+        - science
+        - general
+
+    OutputFormat:
+      type: string
+      enum:
+        - json
+        - csv
+        - xml
+      default: json
+
+    NewsItem:
+      type: object
+      required:
+        - title
+        - link
+        - source_name
+        - snippet
+        - scraped_timestamp
+      properties:
+        title:
+          type: string
+          description: Article title
+        link:
+          type: string
+          format: uri
+          description: Article URL
+        source_name:
+          type: string
+          description: News source name
+        snippet:
+          type: string
+          description: Article excerpt
+        published_date:
+          type: string
+          format: date-time
+          nullable: true
+        scraped_timestamp:
+          type: string
+          format: date-time
+
+    SearchResponse:
+      type: object
+      required:
+        - query
+        - item_count
+        - sources_searched
+        - results
+      properties:
+        query:
+          type: string
+        item_count:
+          type: integer
+        sources_searched:
+          type: array
+          items:
+            type: string
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsItem'
+
+    ScrapeUrlRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+        output_mode:
+          type: string
+          enum:
+            - response
+            - markdown_file
+          default: response
+
+    ScrapeUrlResponse:
+      type: object
+      required:
+        - source_url
+        - status
+      properties:
+        source_url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum:
+            - success
+            - error
+        markdown_content:
+          type: string
+          nullable: true
+        file_path:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - status_code
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
+          nullable: true
+        status_code:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: News Search
+    description: Search news articles
+  - name: URL Scraping
+    description: Scrape article content

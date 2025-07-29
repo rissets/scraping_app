@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  nexus-aggregator-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: nexus-aggregator-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=True
+      - API_KEYS=nexus_dev_key_123,nexus_test_key_456
+    volumes:
+      # Mount source code for hot reload during development
+      - ../app:/app/app
+      - ../config:/app/config
+      - ../main.py:/app/main.py
+      - ../scraped_articles:/app/scraped_articles
+      - ../logs:/app/logs
+    networks:
+      - nexus-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  scraped_articles:
+  logs:
