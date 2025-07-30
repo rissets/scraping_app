@@ -13,6 +13,7 @@ class OutputFormat(str, Enum):
 class OutputMode(str, Enum):
     response = "response"
     markdown_file = "markdown_file"
+    json = "json"
 
 
 class NewsCategory(str, Enum):
@@ -65,10 +66,15 @@ class SearchRequest(BaseModel):
 class ScrapeUrlRequest(BaseModel):
     url: HttpUrl = Field(..., description="The full URL of the article to scrape")
     output_mode: OutputMode = Field(default=OutputMode.response, description="How to return the scraped content")
+    format: OutputFormat = Field(default=OutputFormat.json, description="Output format for response mode")
 
 
 class ScrapeUrlResponse(BaseModel):
     source_url: str = Field(..., description="The original URL that was scraped")
+    title: Optional[str] = Field(None, description="The title of the scraped article")
+    author: Optional[str] = Field(None, description="The author of the article")
+    published_date: Optional[datetime] = Field(None, description="When the article was published")
+    content: Optional[str] = Field(None, description="The main content of the article")
     status: str = Field(..., description="Status of the scraping operation")
     markdown_content: Optional[str] = Field(None, description="The scraped content in markdown format")
     file_path: Optional[str] = Field(None, description="Path to the saved file if output_mode is markdown_file")

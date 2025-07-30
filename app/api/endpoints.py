@@ -88,10 +88,11 @@ async def scrape_url_endpoint(
     api_key: str = Depends(api_key_auth.validate_api_key)
 ):
     """
-    Scrape content from a specific URL and return it in markdown format.
+    Scrape content from a specific URL and return it in the specified format.
     
     - **url**: The full URL of the article to scrape (required)
-    - **output_mode**: How to return the content - 'response' or 'markdown_file' (default: response)
+    - **output_mode**: How to return the content - 'response', 'markdown_file', or 'json' (default: response)
+    - **format**: Output format for response mode - json, csv, or xml (default: json)
     """
     try:
         url = str(request.url)
@@ -105,21 +106,80 @@ async def scrape_url_endpoint(
                 detail=f"Failed to scrape URL: {article_data.get('error', 'Unknown error')}"
             )
         
+        # Extract article information
+        title = article_data.get('title', 'Untitled')
+        author = article_data.get('author')
+        published_date = article_data.get('publish_date')
+        content = article_data.get('content', '')
+        
         # Format as markdown
         markdown_content = format_markdown_content(
-            title=article_data.get('title', 'Untitled'),
-            author=article_data.get('author'),
-            date=article_data.get('publish_date'),
-            content=article_data.get('content', '')
+            title=title,
+            author=author,
+            date=published_date,
+            content=content
         )
         
         if request.output_mode == OutputMode.response:
-            # Return markdown in response
+            # Return in response (default markdown format)
             return ScrapeUrlResponse(
                 source_url=url,
+                title=title,
+                author=author,
+                published_date=published_date,
+                content=content,
                 status="success",
                 markdown_content=markdown_content
             )
+        
+        elif request.output_mode == OutputMode.json:
+            # Return structured JSON data
+            response_data = {
+                "source_url": url,
+                "title": title,
+                "author": author,
+                "published_date": published_date.isoformat() if published_date else None,
+                "content": content,
+                "status": "success",
+                "scraped_timestamp": datetime.utcnow().isoformat()
+            }
+            
+            if request.format == OutputFormat.json:
+                return response_data
+            elif request.format == OutputFormat.csv:
+                # Convert to CSV format
+                import csv
+                import io
+                output = io.StringIO()
+                writer = csv.writer(output)
+                writer.writerow(['Field', 'Value'])
+                for key, value in response_data.items():
+                    writer.writerow([key, str(value) if value is not None else ''])
+                csv_content = output.getvalue()
+                
+                return Response(
+                    content=csv_content,
+                    media_type="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename=scraped_article_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"}
+                )
+            elif request.format == OutputFormat.xml:
+                # Convert to XML format
+                xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<article>
+    <source_url>{url}</source_url>
+    <title>{title or ''}</title>
+    <author>{author or ''}</author>
+    <published_date>{published_date.isoformat() if published_date else ''}</published_date>
+    <content><![CDATA[{content}]]></content>
+    <status>{response_data['status']}</status>
+    <scraped_timestamp>{response_data['scraped_timestamp']}</scraped_timestamp>
+</article>"""
+                
+                return Response(
+                    content=xml_content,
+                    media_type="application/xml",
+                    headers={"Content-Disposition": f"attachment; filename=scraped_article_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xml"}
+                )
         
         elif request.output_mode == OutputMode.markdown_file:
             # Save to file
@@ -135,6 +195,10 @@ async def scrape_url_endpoint(
             
             return ScrapeUrlResponse(
                 source_url=url,
+                title=title,
+                author=author,
+                published_date=published_date,
+                content=content,
                 status="success",
                 file_path=file_path
             )
