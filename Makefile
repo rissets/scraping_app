@@ -43,24 +43,24 @@ docker-build: ## Build Docker image
 
 docker-dev: ## Start development environment with Docker
 	@echo "$(BLUE)Starting development environment with Docker...$(RESET)"
-	cd docker && docker-compose -f docker-compose.dev.yml up -d
+	cd docker && docker compose -f docker-compose.dev.yml up -d
 
 docker-prod: ## Start production environment with Docker
 	@echo "$(BLUE)Starting production environment with Docker...$(RESET)"
-	cd docker && docker-compose up -d
+	cd docker && docker compose up -d
 
 docker-stop: ## Stop Docker containers
 	@echo "$(BLUE)Stopping Docker containers...$(RESET)"
-	cd docker && docker-compose down
+	cd docker && docker compose down
 
 docker-clean: ## Clean Docker containers and volumes
 	@echo "$(YELLOW)Cleaning Docker containers and volumes...$(RESET)"
-	cd docker && docker-compose down --volumes --remove-orphans
+	cd docker && docker compose down --volumes --remove-orphans
 	docker system prune -f
 
 docker-logs: ## Show Docker container logs
 	@echo "$(BLUE)Showing Docker logs...$(RESET)"
-	cd docker && docker-compose logs -f
+	cd docker && docker compose logs -f
 
 docker-test: ## Run tests against Docker container
 	@echo "$(BLUE)Running tests against Docker container...$(RESET)"
