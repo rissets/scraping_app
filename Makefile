@@ -43,11 +43,11 @@ docker-build: ## Build Docker image
 
 docker-dev: ## Start development environment with Docker
 	@echo "$(BLUE)Starting development environment with Docker...$(RESET)"
-	cd docker && docker-compose -f docker/docker-compose.dev.yml up -d
+	cd docker && docker-compose -f docker-compose.dev.yml up -d
 
 docker-prod: ## Start production environment with Docker
 	@echo "$(BLUE)Starting production environment with Docker...$(RESET)"
-	cd docker && docker-compose -f docker/docker-compose.prod.yml up -d
+	cd docker && docker-compose up -d
 
 docker-stop: ## Stop Docker containers
 	@echo "$(BLUE)Stopping Docker containers...$(RESET)"
